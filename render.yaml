@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     buildCommand: npm ci --legacy-peer-deps && npm run build:backend && npx prisma generate
-    startCommand: npx prisma db push && npm run start:backend
+    startCommand: npm run start:backend:render
     envVars:
       - key: NODE_ENV
         value: production

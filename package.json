@@ -11,6 +11,7 @@
     "build:backend": "tsc -p backend/tsconfig.json",
     "start": "next start",
     "start:backend": "node backend/dist/server.js",
+    "start:backend:render": "node scripts/render-start.js",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

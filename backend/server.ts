@@ -153,7 +153,7 @@ process.on('SIGINT', () => {
 })
 
 if (process.env.NODE_ENV !== 'test') {
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     logger.info(`🚀 Server running on port ${PORT}`)
     logger.info(`📝 API documentation available at http://localhost:${PORT}/api/health`)
     logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
