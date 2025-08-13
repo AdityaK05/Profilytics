@@ -27,11 +27,17 @@ dotenv.config()
 
 const app = express()
 const httpServer = createServer(app)
+// Determine allowed frontend origins for CORS and Socket.IO
+const allowedFrontendOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || "http://localhost:3000")
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
-    credentials: true
-  }
+    origin: allowedFrontendOrigins,
+    credentials: true,
+  },
 })
 
 const PORT = process.env.PORT || 5000
@@ -63,7 +69,7 @@ app.use(limiter)
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: allowedFrontendOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-csrf-token'],

@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: profilytics-api
+    env: node
+    plan: free
+    buildCommand: npm ci --legacy-peer-deps && npm run build:backend && npx prisma generate
+    startCommand: npx prisma db push && npm run start:backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false" # ensure devDependencies (typescript) are installed during build
+      - key: DATABASE_URL
+        fromDatabase:
+          name: profilytics-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URLS
+        value: https://your-vercel-project.vercel.app
+      # Optional integrations
+      # - key: REDIS_URL
+      #   value: ""
+    healthCheckPath: /api/health
+
+databases:
+  - name: profilytics-db
+    plan: free
+
