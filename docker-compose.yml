@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: profilytics-db
+    environment:
+      POSTGRES_USER: profilytics_user
+      POSTGRES_PASSWORD: profilytics_password
+      POSTGRES_DB: profilytics
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U profilytics_user -d profilytics"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: profilytics-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Main application
+  app:
+    build: .
+    container_name: profilytics-app
+    ports:
+      - "3000:3000"
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://profilytics_user:profilytics_password@postgres:5432/profilytics
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-jwt-secret-here
+      - OPENAI_API_KEY=your-openai-api-key-here
+      - FRONTEND_URL=http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - app_logs:/app/logs
+      - app_uploads:/app/uploads
+
+volumes:
+  postgres_data:
+  redis_data:
+  app_logs:
+  app_uploads: 
