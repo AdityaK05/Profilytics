@@ -1,0 +1,462 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  EMPLOYER
+  ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  INTERVIEW_SCHEDULED
+  REJECTED
+  ACCEPTED
+  WITHDRAWN
+}
+
+enum JobStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  CLOSED
+  EXPIRED
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      UserRole
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile data
+  firstName String?
+  lastName  String?
+  avatar    String?
+  phone     String?
+  location  String?
+  timezone  String?
+
+  // Relationships
+  studentProfile  StudentProfile?
+  employerProfile EmployerProfile?
+  
+  // Common relationships
+  messages        Message[]
+  notifications   Notification[]
+  sessions        Session[]
+  analytics       UserAnalytics[]
+
+  @@map("users")
+}
+
+model StudentProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Academic info
+  university      String?
+  major           String?
+  graduationYear  Int?
+  gpa             Float?
+  degree          String?
+
+  // Coding profiles
+  githubUsername     String?
+  leetcodeUsername   String?
+  codeforcesUsername String?
+  hackerrankUsername String?
+  codechefUsername   String?
+
+  // Profile metrics (updated by external APIs)
+  leetcodeRating    Int?
+  codeforcesRating  Int?
+  githubContributions Int?
+  totalCommits      Int?
+  publicRepos       Int?
+
+  // Career preferences
+  preferredLocations String[]
+  preferredRoles     String[]
+  expectedSalary     Int?
+  availableFrom      DateTime?
+  resumeUrl          String?
+  portfolioUrl       String?
+  linkedinUrl        String?
+
+  // Skills and experience
+  skills         Skill[]
+  experiences    Experience[]
+  projects       Project[]
+  certifications Certification[]
+  education      Education[]
+
+  // Application history
+  applications   Application[]
+  savedJobs      SavedJob[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("student_profiles")
+}
+
+model EmployerProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Company info
+  companyName    String
+  companySize    String?
+  industry       String?
+  website        String?
+  description    String?
+  logo           String?
+  headquarters   String?
+  founded        Int?
+
+  // Contact info
+  position       String?
+  department     String?
+  phoneNumber    String?
+
+  // Verification
+  verified       Boolean @default(false)
+  verificationDoc String?
+
+  // Relationships
+  jobs           Job[]
+  applications   Application[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employer_profiles")
+}
+
+model Skill {
+  id             String     @id @default(cuid())
+  name           String
+  level          SkillLevel
+  verified       Boolean    @default(false)
+  studentId      String
+  studentProfile StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("skills")
+}
+
+model Experience {
+  id             String    @id @default(cuid())
+  title          String
+  company        String
+  location       String?
+  startDate      DateTime
+  endDate        DateTime?
+  current        Boolean   @default(false)
+  description    String?
+  skills         String[]
+  studentId      String
+  studentProfile StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("experiences")
+}
+
+model Project {
+  id             String    @id @default(cuid())
+  title          String
+  description    String?
+  technologies   String[]
+  githubUrl      String?
+  liveUrl        String?
+  imageUrl       String?
+  featured       Boolean   @default(false)
+  studentId      String
+  studentProfile StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("projects")
+}
+
+model Certification {
+  id             String    @id @default(cuid())
+  name           String
+  issuer         String
+  issueDate      DateTime
+  expiryDate     DateTime?
+  credentialId   String?
+  credentialUrl  String?
+  studentId      String
+  studentProfile StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("certifications")
+}
+
+model Education {
+  id             String    @id @default(cuid())
+  institution    String
+  degree         String
+  field          String?
+  startDate      DateTime
+  endDate        DateTime?
+  gpa            Float?
+  description    String?
+  studentId      String
+  studentProfile StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("education")
+}
+
+model Job {
+  id             String     @id @default(cuid())
+  title          String
+  description    String
+  requirements   String[]
+  responsibilities String[]
+  benefits       String[]
+  
+  // Job details
+  location       String?
+  remote         Boolean    @default(false)
+  type           String     // internship, full-time, part-time, contract
+  duration       String?    // for internships
+  salary         Int?
+  salaryMax      Int?
+  salaryType     String?    // hourly, monthly, yearly
+  
+  // Status and meta
+  status         JobStatus  @default(DRAFT)
+  featured       Boolean    @default(false)
+  urgentHiring   Boolean    @default(false)
+  deadline       DateTime?
+  startDate      DateTime?
+  
+  // Required skills and experience
+  requiredSkills String[]
+  experienceLevel String?
+  educationLevel String?
+  
+  // AI matching criteria
+  matchingCriteria Json?
+  
+  // Employer
+  employerId     String
+  employer       EmployerProfile @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  
+  // Relationships
+  applications   Application[]
+  savedBy        SavedJob[]
+  analytics      JobAnalytics[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  publishedAt DateTime?
+
+  @@map("jobs")
+}
+
+model Application {
+  id        String            @id @default(cuid())
+  status    ApplicationStatus @default(PENDING)
+  
+  // Application content
+  coverLetter String?
+  resumeUrl   String?
+  portfolioUrl String?
+  
+  // Interview details
+  interviewDate DateTime?
+  interviewType String?
+  interviewNotes String?
+  
+  // Feedback and ratings
+  feedback      String?
+  rating        Int?
+  
+  // AI matching score
+  matchScore    Float?
+  matchReasons  String[]
+  
+  // Relationships
+  studentId     String
+  student       StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  jobId         String
+  job           Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  employerId    String
+  employer      EmployerProfile @relation(fields: [employerId], references: [id], onDelete: Cascade)
+  
+  // Application flow tracking
+  viewedByEmployer Boolean @default(false)
+  viewedAt         DateTime?
+  respondedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, jobId])
+  @@map("applications")
+}
+
+model SavedJob {
+  id        String @id @default(cuid())
+  studentId String
+  student   StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  jobId     String
+  job       Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, jobId])
+  @@map("saved_jobs")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  type      String   // user, ai, system
+  metadata  Json?    // for storing AI context, attachments, etc.
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@map("messages")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   // application_update, interview_scheduled, job_match, etc.
+  read      Boolean  @default(false)
+  metadata  Json?
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+
+  @@map("sessions")
+}
+
+// Analytics models
+model UserAnalytics {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  event     String   // login, profile_view, application_submit, etc.
+  metadata  Json?
+  ipAddress String?
+  userAgent String?
+  
+  createdAt DateTime @default(now())
+
+  @@map("user_analytics")
+}
+
+model JobAnalytics {
+  id     String @id @default(cuid())
+  jobId  String
+  job    Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  event     String   // view, apply, save, etc.
+  metadata  Json?
+  userId    String?
+  ipAddress String?
+  
+  createdAt DateTime @default(now())
+
+  @@map("job_analytics")
+}
+
+// AI/ML models for recommendations
+model RecommendationModel {
+  id           String @id @default(cuid())
+  modelName    String
+  version      String
+  parameters   Json
+  performance  Json?
+  isActive     Boolean @default(false)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("recommendation_models")
+}
+
+model UserPreferences {
+  id                String @id @default(cuid())
+  userId            String @unique
+  
+  // Notification preferences
+  emailNotifications    Boolean @default(true)
+  pushNotifications     Boolean @default(true)
+  jobAlerts            Boolean @default(true)
+  applicationUpdates   Boolean @default(true)
+  
+  // AI preferences
+  aiSuggestions        Boolean @default(true)
+  personalizedContent  Boolean @default(true)
+  dataCollection       Boolean @default(true)
+  
+  // Privacy settings
+  profileVisibility    String @default("public") // public, private, connections
+  contactPermissions   Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_preferences")
+} 

@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: profilytics-db-prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-profilytics_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-profilytics_password}
+      POSTGRES_DB: ${POSTGRES_DB:-profilytics}
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-profilytics_user} -d ${POSTGRES_DB:-profilytics}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - profilytics-network
+    restart: unless-stopped
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: profilytics-redis-prod
+    volumes:
+      - redis_data_prod:/data
+    networks:
+      - profilytics-network
+    restart: unless-stopped
+
+  # Backend API server
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: profilytics-backend-prod
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - FRONTEND_URLS=${FRONTEND_URLS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - backend_logs_prod:/app/logs
+      - backend_uploads_prod:/app/uploads
+    networks:
+      - profilytics-network
+    restart: unless-stopped
+
+  # Frontend Next.js application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: profilytics-frontend-prod
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+    depends_on:
+      - backend
+    networks:
+      - profilytics-network
+    restart: unless-stopped
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: profilytics-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - profilytics-network
+    restart: unless-stopped
+
+networks:
+  profilytics-network:
+    driver: bridge
+
+volumes:
+  postgres_data_prod:
+  redis_data_prod:
+  backend_logs_prod:
+  backend_uploads_prod:
